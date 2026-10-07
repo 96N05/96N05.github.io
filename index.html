@@ -7,136 +7,17 @@
 <body>
   <h1>Welcome to my website</h1>
 
-  <!-- AccuAir Minimal Widget -->
-<div id="accuair-box" style="font-family: system-ui, -apple-system, sans-serif; background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 20px; max-width: 380px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-    <div>
-      <div style="font-weight:700; font-size:15px; color:#171717;">📍 <span id="aa-city">New York</span></div>
-      <div id="aa-temp" style="font-size:12px; color:#737373; margin-top:2px;">Loading...</div>
-    </div>
-    <button onclick="aaFetch(true)" style="background:none; border:none; cursor:pointer; font-size:15px; color:#737373;" title="Refresh">↻</button>
-  </div>
+<!-- 1. Place widget container anywhere in your <body> -->
+<div 
+  id="accuair-widget" 
+  data-city="Tarzana"
+  data-lat="34.17334"
+  data-lon="-118.55397"
+  data-unit="C"
+></div>
 
-  <!-- AQI Value and Simple Descriptive Label -->
-  <div id="aa-aqi-card" style="background:#f0fdf4; border:1px solid #e5e5e5; border-radius:12px; padding:16px; margin-bottom:16px;">
-    <div style="font-size:11px; text-transform:uppercase; font-weight:600; color:#525252; letter-spacing:0.05em; margin-bottom:4px;">Air Quality</div>
-    <div style="display:flex; align-items:baseline; gap:12px;">
-      <div id="aa-aqi-val" style="font-size:44px; font-weight:700; font-family:monospace; line-height:1; color:#0a0a0a;">--</div>
-      <div>
-        <div style="font-size:10px; text-transform:uppercase; color:#737373; font-weight:600;">Index Value</div>
-        <div id="aa-aqi-cat" style="font-size:16px; font-weight:600; color:#047857; line-height:1.2;">Checking...</div>
-      </div>
-    </div>
-  </div>
+<!-- 2. Include the standalone widget script -->
+<script src="https://ais-dev-nrsff6f6ywyiy4zyt4ikxe-682972411559.us-east1.run.app/accuair-widget.js"></script>
 
-  <!-- Health & Activities Gallery -->
-  <div style="border-top:1px solid #f5f5f5; padding-top:10px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:#525252;" id="aa-page-title">Fitness (1/3)</div>
-      <div style="display:flex; gap:4px;">
-        <button onclick="aaPage(-1)" style="background:#f5f5f5; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">‹</button>
-        <button onclick="aaPage(1)" style="background:#f5f5f5; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">›</button>
-      </div>
-    </div>
-    <div id="aa-items" style="display:flex; flex-direction:column; gap:6px;"></div>
-  </div>
-
-  <div style="border-top:1px solid #f5f5f5; margin-top:12px; padding-top:8px; display:flex; justify-content:space-between; font-size:11px; color:#a3a3a3;">
-    <span id="aa-status">⏱ Hourly auto-sync</span>
-    <span id="aa-updated" style="font-family:monospace;">--</span>
-  </div>
-</div>
-
-<script>
-(function() {
-  const lat = 40.7128, lon = -74.006; // Set your coordinates
-  let page = 0, currentData = null;
-
-  function catInfo(aqi) {
-    if (aqi <= 50) return { label: 'Good', color: '#047857', bg: '#f0fdf4' };
-    if (aqi <= 100) return { label: 'Moderate', color: '#b45309', bg: '#fffbeb' };
-    if (aqi <= 150) return { label: 'Unhealthy for Sensitive Groups', color: '#c2410c', bg: '#fff7ed' };
-    if (aqi <= 200) return { label: 'Unhealthy', color: '#b91c1c', bg: '#fef2f2' };
-    return { label: 'Very Unhealthy', color: '#7e22ce', bg: '#faf5ff' };
-  }
-
-  function render() {
-    if (!currentData) return;
-    const a = catInfo(currentData.aqi);
-    document.getElementById('aa-aqi-val').textContent = currentData.aqi;
-    document.getElementById('aa-aqi-cat').textContent = a.label;
-    document.getElementById('aa-aqi-cat').style.color = a.color;
-    document.getElementById('aa-aqi-card').style.background = a.bg;
-    document.getElementById('aa-temp').textContent = `${Math.round(currentData.temp * 9/5 + 32)}°F · Humidity ${currentData.humidity}%`;
-    document.getElementById('aa-updated').textContent = `Updated ${currentData.time}`;
-
-    const titles = ['Fitness (1/3)', 'Health & Allergy (2/3)', 'Outdoor & Lifestyle (3/3)'];
-    document.getElementById('aa-page-title').textContent = titles[page];
-
-    const pItems = currentData.indices.filter(i => i.page === page);
-    document.getElementById('aa-items').innerHTML = pItems.map(i => `
-      <div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;">
-        <span style="color:#404040;">${i.name}</span>
-        <div style="display:flex; gap:8px;">
-          <span style="font-weight:600; color:${i.score >= 7 ? '#047857' : i.score >= 5 ? '#b45309' : '#b91c1c'}">${i.cat}</span>
-          <span style="font-family:monospace; color:#737373;">${i.score}/10</span>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  window.aaPage = function(dir) { page = (page + dir + 3) % 3; render(); };
-
-  window.aaFetch = async function(force) {
-    const key = 'aa_cache_ny';
-    const cached = localStorage.getItem(key);
-    if (!force && cached) {
-      const p = JSON.parse(cached);
-      if (Date.now() - p.t < 3600000 || !navigator.onLine) {
-        currentData = p.d;
-        document.getElementById('aa-status').textContent = navigator.onLine ? '⏱ Hourly auto-sync' : '⚡ Offline (cached)';
-        render();
-        return;
-      }
-    }
-    try {
-      const [aqR, wR] = await Promise.all([
-        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`),
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,uv_index`)
-      ]);
-      const aq = await aqR.json(), w = await wR.json();
-      const aqi = Math.round(aq?.current?.us_aqi || 42);
-      const temp = w?.current?.temperature_2m || 20;
-      const humidity = Math.round(w?.current?.relative_humidity_2m || 50);
-      const uv = Math.round(w?.current?.uv_index || 3);
-      const now = new Date();
-
-      currentData = {
-        aqi, temp, humidity,
-        time: `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`,
-        indices: [
-          { name: 'Running', cat: aqi > 100 ? 'Fair' : 'Ideal', score: aqi > 100 ? 5 : 10, page: 0 },
-          { name: 'Cycling', cat: aqi > 90 ? 'Good' : 'Ideal', score: aqi > 90 ? 7 : 10, page: 0 },
-          { name: 'Hiking & Walking', cat: 'Very Good', score: 8, page: 0 },
-          { name: 'Asthma Forecast', cat: aqi > 100 ? 'Fair' : 'Ideal', score: aqi > 100 ? 4 : 10, page: 1 },
-          { name: 'Sinus Pressure', cat: humidity > 75 ? 'Fair' : 'Very Good', score: humidity > 75 ? 5 : 8, page: 1 },
-          { name: 'UV Index', cat: uv > 6 ? 'Fair' : 'Good', score: uv, page: 1 },
-          { name: 'Dust & Dander', cat: 'Very Good', score: 8, page: 2 },
-          { name: 'Arthritis Index', cat: 'Very Good', score: 8, page: 2 },
-          { name: 'Lawn & Garden', cat: 'Ideal', score: 10, page: 2 }
-        ]
-      };
-      localStorage.setItem(key, JSON.stringify({ t: Date.now(), d: currentData }));
-      document.getElementById('aa-status').textContent = '⏱ Hourly auto-sync';
-      render();
-    } catch(e) {
-      if (cached) { currentData = JSON.parse(cached).d; render(); }
-    }
-  };
-
-  aaFetch(false);
-  setInterval(() => aaFetch(true), 3600000); // 1-hour auto-update
-})();
-</script>
 </body>
 </html>
